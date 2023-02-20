@@ -1,78 +1,86 @@
 //
-//  ContentView.swift
-//  recipe_app_ui
+//  main_view.swift
+//  ui
 //
-//  Created by Lia Toumazi on 04/02/2023.
+//  Created by Lia Toumazi on 20/02/2023.
 //
 
 import SwiftUI
 
-struct ContentView_draft: View {
-    
-    @State var searchText = "" // var holding any text user writes in the search bar
+struct main_view: View {
+    @State var searchText = ""
+    @State var result = ""
     @State var isSearching = false
     @State var offset: CGFloat = .zero
-    
+
     var body: some View {
         NavigationView {
             ScrollView {
-                
-                searchbar(searchText: $searchText, isSearching: $isSearching, offset: $offset)
-                
-                ForEach((0..<20).filter({ "\($0)".contains(searchText) || searchText.isEmpty}),
-                        id: \.self) { num in
-                    
-                            HStack {
-                                Text("\(num)")
-                                Spacer()
-                            }.padding()
-                            
-                            Divider()
-                                .background(Color(.systemGray4))
-                                .padding(.leading)
-                }
-                
+                Searchbar(getResult: getResult, searchText: $searchText, isSearching: $isSearching, offset: $offset)
 
+                if !result.isEmpty {
+                    Text(result)
+                        .padding()
+                        .foregroundColor(.green)
+                }
             }
             .navigationTitle("Find Recipes")
         }
     }
-}
 
-struct ContentView_draft_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-        ContentView().colorScheme(.dark)
+    func getResult() {
+        let url = URL(string: "http://ui.com/output")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        let parameters = ["input_string": searchText]
+        request.httpBody = try! JSONSerialization.data(withJSONObject: parameters, options: [])
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let data = data {
+                if let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] {
+                    if let result = json["result"] as? Int {
+                        self.result = "Length of input string: \(result)"
+                    }
+                }
+            }
+        }.resume()
     }
 }
 
+struct main_view_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+        // ContentView().colorScheme(.dark)
+    }
+}
 
-
-struct searchbar: View {
-    
+struct Searchbar: View {
+    var getResult: () -> Void
     @Binding var searchText: String
     @Binding var isSearching: Bool
     @Binding var offset: CGFloat
-    
+
     var body: some View {
         HStack {
             HStack {
-                TextField("Search ingedients here", text: $searchText)
-                    .padding(.leading, 24)
+                TextField("Search ingedients here", text: $searchText) {
+                    self.getResult()
+                }
+                .padding(.leading, 24)
             }
-            .padding() // height of shape
+            .padding()
             .background(Color(.systemGray5))
             .cornerRadius(6)
-            .padding(.horizontal) // white border around shape
+            .padding(.horizontal)
             .onTapGesture(perform: {
                 isSearching = true
             })
-            
             .overlay(
                 HStack {
                     Image(systemName: "magnifyingglass")
                     Spacer()
-                    
+
                     if isSearching { // if isSearching = true
                         Button(action: {searchText = ""}, label: {
                             Image(systemName: "xmark.circle.fill")
